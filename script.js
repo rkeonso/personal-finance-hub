@@ -10,7 +10,10 @@ const incomeDisplay = document.getElementById('total-income');
 const expenseDisplay = document.getElementById('total-expenses');
 const transactionList = document.getElementById('transaction-list');
 
-let transactions = []; //  memory array to hold all transactions
+// check if transactions exist in localStorage, if not, initialize an empty array
+let transactions = localStorage.getItem('budgetTransactions') !== null 
+  ? JSON.parse(localStorage.getItem('budgetTransactions')) 
+  : [];
 
 function updateSummary() {
   let incomeTotal = 0;
@@ -35,7 +38,6 @@ function updateSummary() {
   if (netBalance >= 0) {
     balanceDisplay.textContent = `$${netBalance.toFixed(2)}`;
   } else {
-    
     balanceDisplay.textContent = `-$${Math.abs(netBalance).toFixed(2)}`;
   }
 }
@@ -64,6 +66,14 @@ function renderList() {
   });
 }
 
+function saveToLocalStorage() {
+    localStorage.setItem('budgetTransactions', JSON.stringify(transactions));
+}
+
+function init() {
+    renderList();
+    updateSummary();
+}
 
 form.addEventListener('submit', function (event) {
   event.preventDefault();
@@ -84,5 +94,9 @@ form.addEventListener('submit', function (event) {
 
   renderList();
   updateSummary();
+  saveToLocalStorage();
+
   form.reset(); // clear form inputs
 });
+
+init();
