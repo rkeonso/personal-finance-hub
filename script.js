@@ -57,9 +57,14 @@ function renderList() {
     const symbol = transaction.type === 'income' ? '+' : '-';
 
     li.innerHTML = `
-      <span>${transaction.type === 'income' ? '🟢' : '🔴'} ${transaction.description}</span>
-      <span>${symbol}$${transaction.amount.toFixed(2)}</span>
-    `;
+  <span>${transaction.type === 'income' ? '🟢' : '🔴'} ${transaction.description}</span>
+  <div>
+    <span style="margin-right: 15px;">${symbol}$${transaction.amount.toFixed(2)}</span>
+    <!-- NEW: Explicit delete button with custom data-id attribute -->
+    <button class="btn-delete" data-id="${transaction.id}">❌</button>
+  </div>
+`;
+
 
     // Inject this new list item 
     transactionList.appendChild(li);
@@ -74,6 +79,8 @@ function init() {
     renderList();
     updateSummary();
 }
+
+
 
 form.addEventListener('submit', function (event) {
   event.preventDefault();
@@ -100,3 +107,15 @@ form.addEventListener('submit', function (event) {
 });
 
 init();
+
+transactionList.addEventListener('click', function (event) {
+    if(event.target.classList.contains('btn-delete')) {
+        
+        const transactionId = parseInt(event.target.dataset.id, 10);
+        transactions = transactions.filter(transaction => transaction.id !== transactionId);
+
+        renderList();
+        updateSummary();
+        saveToLocalStorage();
+    }
+});
