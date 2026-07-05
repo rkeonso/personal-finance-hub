@@ -3,6 +3,8 @@ const form = document.getElementById('transaction-form');
 const descriptionInput = document.getElementById('description');
 const amountInput = document.getElementById('amount');
 const typeSelect = document.getElementById('type');
+const categorySelect = document.getElementById('category');
+const filterContainer = document.getElementById('filter-container');
 
 // grab cards
 const balanceDisplay = document.getElementById('total-balance');
@@ -14,6 +16,8 @@ const transactionList = document.getElementById('transaction-list');
 let transactions = localStorage.getItem('budgetTransactions') !== null 
   ? JSON.parse(localStorage.getItem('budgetTransactions')) 
   : [];
+
+let currentFilter = 'all'; // Default filter to show all transactions
 
 function updateSummary() {
   let incomeTotal = 0;
@@ -46,8 +50,14 @@ function renderList() {
   // Clear the existing list items (removes our old temporary HTML mock item)
   transactionList.innerHTML = '';
 
+  //  temporary array to hold filtered transactions
+  let filteredTransactions = transactions.filter(transaction => {
+    console.log(`Comparing Active Filter: "${currentFilter}" with Transaction Category: "${transaction.category}"`);
+    return currentFilter === 'all' || transaction.category === currentFilter;
+  });
+
   // Loop through our array database, new html created
-  transactions.forEach(transaction => {
+  filteredTransactions.forEach(transaction => {
     const li = document.createElement('li');
     
     // Add the structural class names we built inside our style.css file
@@ -57,7 +67,7 @@ function renderList() {
     const symbol = transaction.type === 'income' ? '+' : '-';
 
     li.innerHTML = `
-  <span>${transaction.type === 'income' ? '🟢' : '🔴'} ${transaction.description}</span>
+  <span>${transaction.type === 'income' ? '🟢' : '🔴'} [${transaction.category}] ${transaction.description}</span>
   <div>
     <span style="margin-right: 15px;">${symbol}$${transaction.amount.toFixed(2)}</span>
     <!-- NEW: Explicit delete button with custom data-id attribute -->
@@ -90,11 +100,27 @@ form.addEventListener('submit', function (event) {
     return;
   }
 
+  
+  if (isNaN(amountInput.value) || parseFloat(amountInput.value) <= 0) {
+    alert('Please enter a valid positive number for the amount.');
+    return;
+  }
+  
+  const amountValue = parseFloat(amountInput.value);
+
+  if (descriptionInput.value.trim().length > 50) {
+    alert('Description should not exceed 50 characters.');
+    return;
+  }
+
+  
+
   const newTransaction = {
     id: Date.now(),
     description: descriptionInput.value.trim(),
-    amount: parseFloat(amountInput.value),
-    type: typeSelect.value
+    amount: amountValue,
+    type: typeSelect.value,
+    category: categorySelect.value
   };
 
   transactions.push(newTransaction);
@@ -119,3 +145,20 @@ transactionList.addEventListener('click', function (event) {
         saveToLocalStorage();
     }
 });
+
+
+
+filterContainer.addEventListener('click', function(event) {
+  // Find the button element, 
+  const button = event.target.closest('.btn-filter');
+  
+  // If you clicked the empty container space outside a button, stop
+  if (!button) return;
+
+  currentFilter = button.dataset.category;
+  
+  console.log('Active filter changed to:', currentFilter); 
+
+  renderList();
+});
+

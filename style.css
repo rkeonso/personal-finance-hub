@@ -171,3 +171,24 @@ h2 {
     height:42px; /* height of input fields for alignment */
   }
 }
+
+#filter-container {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.btn-filter {
+  background-color: #e5e7eb;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: var(--transition);
+}
+
+.btn-filter:hover {
+  background-color: #d1d5db;
+}
+
