@@ -102,3 +102,25 @@
   <script src="script.js"></script>
 </body>
 </html>
+
+export default function TransactionItem({id, description, amount, type, category, onDelete}) {
+  return (
+  <li className={`history-item ${type}`} key={id}>
+    <span>{description} ({category})</span>
+    <span>{type === 'income' ? `+$${amount.toFixed(2)}` : `-$${amount.toFixed(2)}`}</span>
+    <button onClick={() => onDelete(id)} className="btn-delete">Delete</button>
+  )
+}
+
+export default function TransactionList({transactions, onDelete}) {
+
+  const transactionList = transactions.map(transaction => (
+    <li key ={transaction.id}>{transaction}</li>
+  ))
+  if (transactions.length === 0) {
+    <span>No transactions recorded yet. add one above!</span>
+  }
+  return (
+
+  )
+}
