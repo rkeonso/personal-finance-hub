@@ -1,34 +1,82 @@
 import { useState, useEffect } from 'react';
 import SummaryCard from './components/SummaryCard';
+import CsvUploader from './components/CsvUploader';
+import { fetchTransactions, fetchMonthlySummary, createTransaction, loginUser } from './api/services'; // Added createTransaction import
 import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 import ExpensesChart from "./components/ExpensesChart";
 
 export default function App() {
-  // 1. Initial State from localStorage
-  const [transactions, setTransactions] = useState(() => {
-    const savedData = localStorage.getItem('budgetTransactions');
-    return savedData ? JSON.parse(savedData) : [];
-  });
-
-  // Active filter state
+  const [transactions, setTransactions] = useState([]);
+  const [chartData, setChartData] = useState([]); //  Added chartData state from Dashboard
+  const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
 
-  // 2. useEffect: Sync transactions to localStorage on every change
+
+const handleAutoLogin = async () => {
+  try {
+    // Replace with a valid test account registered in your database
+    const session = await loginUser('test@example.com', 'password123');
+    
+    // If your client setup uses localStorage to persist tokens:
+    if (session.token) {
+      localStorage.setItem('token', session.token);
+    }
+    
+    // Now that we are logged in, load your financial data
+    await loadData();
+  } catch (err) {
+    console.error('Authentication failed:', err);
+  }
+};
+
+// Swap your initial data-loading useEffect block with this one:
+useEffect(() => {
+  handleAutoLogin();
+}, []);
+
+
+  // 3. Consolidated loading function using Promise.all
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const [txList, summary] = await Promise.all([
+        fetchTransactions(),
+        fetchMonthlySummary(new Date().getFullYear()),
+      ]);
+      setTransactions(txList);
+      setChartData(summary);
+    } catch (err) {
+      console.error('Failed to load dashboard data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    localStorage.setItem('budgetTransactions', JSON.stringify(transactions));
-  }, [transactions]);
+    loadData();
+  }, []);
 
   // Handlers
-  const handleAddTransaction = (newTransaction) => {
-    setTransactions((prev) => [newTransaction, ...prev]);
+  const handleAddTransaction = async (formData) => {
+    try {
+      const newTransaction = await createTransaction(formData);
+      setTransactions((prev) => [newTransaction, ...prev]);
+      
+      // Optional: Refresh summary/chart data when a new manual transaction is added
+      const summary = await fetchMonthlySummary(new Date().getFullYear());
+      setChartData(summary);
+    } catch (err) {
+      console.error('Failed to create transaction:', err);
+      alert('Error saving transaction. Please try again.');
+    }
   };
 
   const handleDeleteTransaction = (id) => {
     setTransactions((prev) => prev.filter((item) => item.id !== id));
   };
 
-  // Summary Metrics (always calculated from full transactions list)
+  // Summary Metrics
   const incomeTotal = transactions
     .filter((item) => item.type === 'income')
     .reduce((acc, item) => acc + item.amount, 0);
@@ -39,7 +87,7 @@ export default function App() {
 
   const netBalance = incomeTotal - expenseTotal;
 
-  // 3. Derived State: Filtered transactions array for display
+  // Derived State for Filtering
   const filteredTransactions = activeFilter === 'all'
     ? transactions
     : transactions.filter((item) => item.category === activeFilter);
@@ -47,28 +95,32 @@ export default function App() {
   const categories = ['all', 'Salary', 'Food', 'Entertainment', 'Utilities', 'Other'];
 
   return (
-    <main className="dashboard-container">
+    <main className="dashboard-container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
       <header className="dashboard-header">
         <h1>Personal Finance Hub</h1>
         <p>Manage your finances effectively and efficiently in real-time.</p>
       </header>
 
-      {/* Financial Summary */}
+      <CsvUploader onUploadSuccess={loadData} />
+      
+      {/* Financial Summary Cards */}
       <section className="summary-section">
         <SummaryCard title="Net Balance" amount={netBalance} type="balance" />
         <SummaryCard title="Total Income" amount={incomeTotal} type="income" />
         <SummaryCard title="Total Expenses" amount={expenseTotal} type="expense" />
       </section>
 
-       <ExpensesChart transactions={transactions} />
+      {/* Expenses Chart (Now using the rich data fetched from loadData) */}
+      <ExpensesChart transactions={transactions} chartData={chartData} />
+      
       {/* Transaction Input Form */}
       <TransactionForm onAddTransaction={handleAddTransaction} />
 
       {/* History Ledger Section */}
-      <section className="history-section">
-        <h2>Transaction History</h2>
+      <section className="history-section" style={{ marginTop: '24px' }}>
+        <h2>Transaction History ({transactions.length})</h2>
 
-        {/* 4 & 5. Filter Button Bar */}
+        {/* Filter Button Bar */}
         <div className="filter-container" style={{ margin: '1rem 0' }}>
           {categories.map((cat) => (
             <button
@@ -81,12 +133,17 @@ export default function App() {
           ))}
         </div>
 
-        {/* Render filtered items */}
-        <TransactionList 
-          transactions={filteredTransactions} 
-          onDelete={handleDeleteTransaction} 
-        />
-       
+        {/* Render filtered items or fallback UI */}
+        {isLoading ? (
+          <p>Loading transactions...</p>
+        ) : filteredTransactions.length === 0 ? (
+          <p style={{ color: '#64748b' }}>No transactions recorded yet. Drop a CSV above or add one manually!</p>
+        ) : (
+          <TransactionList 
+            transactions={filteredTransactions} 
+            onDelete={handleDeleteTransaction} 
+          />
+        )}
       </section>
     </main>
   );
