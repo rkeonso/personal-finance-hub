@@ -73,4 +73,28 @@ describe('Personal Finance API Integration Tests - Auth', () => {
       expect([200, 201]).toContain(response.status);
     });
   });
+
+describe('POST /api/auth/register', () => {
+  it('should return 400 if email is missing but password is provided', async () => {
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send({ password: 'Password123!' })
+      .expect(400);
+
+    expect(response.body).toHaveProperty('error', 'Email and password required');
+  });
+
+  it('should return 500 if database query throws an unexpected error', async () => {
+    // Force Prisma to throw an unhandled rejection
+    prisma.user.findUnique.mockRejectedValueOnce(new Error('DB Connection Timeout'));
+
+    const response = await request(app)
+      .post('/api/auth/register')
+      .send({ email: 'crash@umn.edu', password: 'Password123!' })
+      .expect(500);
+
+    expect(response.body).toHaveProperty('error');
+  });
+});
+
 });

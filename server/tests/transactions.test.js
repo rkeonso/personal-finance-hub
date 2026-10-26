@@ -74,4 +74,20 @@ describe('Personal Finance API - Transactions & CSV Upload', () => {
       expect(prisma.transaction.createMany).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('POST /api/transactions/upload-csv', () => {
+    it('should return 500 if the uploaded CSV file is malformed', async () => {
+        // Simulating invalid CSV format that causes csv-parse to fail
+        const malformedCsv = '"unclosed quote,broken line\nnext row';
+
+        const res = await request(app)
+            .post('/api/transactions/upload-csv') 
+            .attach('file', Buffer.from(malformedCsv), 'bad.csv')
+            .expect(400);
+
+        expect(res.body).toHaveProperty('error'); 
+    });
+});
+
+  
 });
