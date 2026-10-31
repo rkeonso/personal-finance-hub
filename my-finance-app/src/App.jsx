@@ -7,6 +7,7 @@ import TransactionList from './components/TransactionList';
 import ExpensesChart from "./components/ExpensesChart";
 
 export default function App() {
+  const [showUploader, setShowUploader] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [chartData, setChartData] = useState([]); //  Added chartData state from Dashboard
   const [isLoading, setIsLoading] = useState(true);
@@ -99,10 +100,27 @@ useEffect(() => {
       <header className="dashboard-header">
         <h1>Personal Finance Hub</h1>
         <p>Manage your finances effectively and efficiently in real-time.</p>
+
+        {/* Toggle Button */}
+        <button
+          onClick={() => setShowUploader((prev) => !prev)}
+          className="px-4 py-2 text-sm font-medium border border-gray-300 rounded-lg shadow-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+        >
+          {showUploader ? '✕ Close Import' : '📁 Import CSV'}
+        </button>
       </header>
 
-      <CsvUploader onUploadSuccess={loadData} />
-      
+      {/* CONDITIONAL RENDER: CsvUploader ONLY goes here */}
+      {showUploader && (
+        <div className="mb-6">
+          <CsvUploader onUploadSuccess={() => { 
+            loadData();
+            setShowUploader(false)
+          }}
+          />
+        </div>
+      )}
+
       {/* Financial Summary Cards */}
       <section className="summary-section">
         <SummaryCard title="Net Balance" amount={netBalance} type="balance" />
@@ -144,6 +162,8 @@ useEffect(() => {
             onDelete={handleDeleteTransaction} 
           />
         )}
+
+
       </section>
     </main>
   );
