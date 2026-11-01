@@ -6,7 +6,10 @@ export default function CsvUploader({ onUploadSuccess }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [status, setStatus] = useState({ type: null, message: '' });
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
   const fileInputRef = useRef(null);
+
+
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -57,29 +60,37 @@ export default function CsvUploader({ onUploadSuccess }) {
     setSelectedFile(file);
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) return;
+  const handleUpload = async (file) => {
+    if (!file) return;
 
     setIsLoading(true);
-    setStatus({ type: null, message: '' });
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    // Build the FormData payload inside the upload handler
+    const formData = new FormData();
+    formData.append('file', file);
 
     try {
-      const response = await uploadTransactionsCSV(selectedFile);
-      setStatus({
-        type: 'success',
-        message: `Imported ${response.count || 'all'} transactions successfully!`,
+      const response = await fetch('/api/transactions/upload-csv', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
       });
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
 
-      // Trigger parent callback to refresh transaction tables/charts
-      if (onUploadSuccess) {
-        onUploadSuccess();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload CSV');
       }
+
+      const data = await response.json();
+      console.log(`Successfully imported ${data.count} transactions.`);
+
+      // Trigger the parent refresh and drawer closing
+      if (onUploadSuccess) onUploadSuccess();
     } catch (err) {
-      const errorMessage =
-        err.response?.data?.error || 'Failed to upload CSV. Check file formatting and try again.';
-      setStatus({ type: 'error', message: errorMessage });
+      console.error(err);
+      setErrorMsg(err.message);
     } finally {
       setIsLoading(false);
     }
@@ -108,12 +119,12 @@ export default function CsvUploader({ onUploadSuccess }) {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current && fileInputRef.current.click()}
-        style={{
-          ...styles.dropArea,
-          ...(isDragging ? styles.dropAreaActive : {}),
-        }}
+        onClick={() => fileInputRef.current?.click()}
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+          isDragging ? 'border-indigo-500 bg-indigo-50/30' : 'border-gray-300 hover:border-indigo-400'
+        } ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}
       >
+
         <div style={styles.iconContainer}>
           <svg
             width="36"
