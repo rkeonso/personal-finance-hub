@@ -7,9 +7,8 @@ export default function CsvUploader({ onUploadSuccess }) {
   const [status, setStatus] = useState({ type: null, message: '' });
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [successMsg, setSuccessMsg] = useState(null);
   const fileInputRef = useRef(null);
-
-
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -25,10 +24,12 @@ export default function CsvUploader({ onUploadSuccess }) {
     e.preventDefault();
     setIsDragging(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      validateAndSetFile(e.dataTransfer.files[0]);
-    }
-  };
+   if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    const droppedFile = e.dataTransfer.files[0];
+    validateAndSetFile(droppedFile); 
+
+  }
+};
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -60,41 +61,55 @@ export default function CsvUploader({ onUploadSuccess }) {
     setSelectedFile(file);
   };
 
-  const handleUpload = async (file) => {
-    if (!file) return;
+  const handleUpload = async () => {
+  // Grab the file directly from your component state instead of a function argument!
+  if (!selectedFile) {
+    setErrorMsg("Please select or drop a CSV file first.");
+    return;
+  }
 
-    setIsLoading(true);
-    setErrorMsg(null);
-    setSuccessMsg(null);
+  setIsLoading(true);
+  setErrorMsg(null);
+  setSuccessMsg(null);
+  setStatus({ type: 'loading', message: 'Uploading CSV...' });
 
-    // Build the FormData payload inside the upload handler
-    const formData = new FormData();
-    formData.append('file', file);
+  const formData = new FormData();
+  formData.append('file', selectedFile, selectedFile.name);
 
-    try {
-      const response = await fetch('/api/transactions/upload-csv', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
+  try {
+    const response = await fetch('/api/transactions/upload-csv', {
+      method: 'POST',
+      credentials: 'include', // clean cookie handling
+      body: formData,
+    });
 
-      if (!response.ok) {
+    if (!response.ok) {
+      let errorMessage = 'Failed to upload CSV';
+      try {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to upload CSV');
+        errorMessage = errorData.error || errorMessage;
+      } catch {
+        errorMessage = `Server error: ${response.status} ${response.statusText}`;
       }
-
-      const data = await response.json();
-      console.log(`Successfully imported ${data.count} transactions.`);
-
-      // Trigger the parent refresh and drawer closing
-      if (onUploadSuccess) onUploadSuccess();
-    } catch (err) {
-      console.error(err);
-      setErrorMsg(err.message);
-    } finally {
-      setIsLoading(false);
+      throw new Error(errorMessage);
     }
-  };
+
+    const data = await response.json();
+    setSuccessMsg(`Successfully imported ${data.count} transactions.`);
+    setStatus({ type: 'success', message: 'CSV imported successfully.' });
+    setSelectedFile(null); // Clear state after success
+
+    if (onUploadSuccess) onUploadSuccess();
+  } catch (err) {
+    console.error("Upload error:", err);
+    setErrorMsg(err.message);
+    setStatus({ type: 'error', message: err.message });
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   return (
     <div style={styles.container}>
@@ -102,8 +117,6 @@ export default function CsvUploader({ onUploadSuccess }) {
       <p style={styles.subheading}>
         Upload standard export files with columns: <code>Date</code>, <code>Description</code>, <code>Amount</code>, <code>Category</code>.
       </p>
-
-    
 
       {/* Hidden File Input */}
       <input
@@ -164,7 +177,7 @@ export default function CsvUploader({ onUploadSuccess }) {
       {selectedFile && (
         <div style={styles.actions}>
           <button
-            onClick={handleUpload}
+            onClick={() => handleUpload()}
             disabled={isLoading}
             style={{
               ...styles.uploadButton,
