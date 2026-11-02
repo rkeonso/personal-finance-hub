@@ -13,7 +13,6 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('all');
 
-
 const handleAutoLogin = async () => {
   try {
     // Replace with a valid test account registered in your database
@@ -129,7 +128,7 @@ useEffect(() => {
       </section>
 
       {/* Expenses Chart (Now using the rich data fetched from loadData) */}
-      <ExpensesChart transactions={transactions} chartData={chartData} />
+      <ExpensesChart summaryData={chartData} rawTransactions={transactions} />
       
       {/* Transaction Input Form */}
       <TransactionForm onAddTransaction={handleAddTransaction} />

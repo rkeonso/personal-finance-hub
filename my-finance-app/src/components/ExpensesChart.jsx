@@ -1,55 +1,120 @@
-import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import { Doughnut } from 'react-chartjs-2';
+import React, { useMemo } from 'react';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+} from 'recharts';
 
-// Register required modules for Chart.js
-ChartJS.register(ArcElement, Tooltip, Legend);
+const COLORS = [
+  '#4f46e5', // Indigo
+  '#06b6d4', // Cyan
+  '#10b981', // Emerald
+  '#f59e0b', // Amber
+  '#ef4444', // Red
+  '#8b5cf6', // Purple
+  '#ec4899', // Pink
+  '#64748b', // Slate
+];
 
-export default function ExpenseChart({ transactions }) {
-  // Filter for expenses only
-  const expenses = transactions.filter((t) => t.type === 'expense');
-
-  if (expenses.length === 0) {
+const CustomTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload; // Access raw data payload securely
+    const val = Number(data.value || 0);
     return (
-      <div className="chart-card empty-chart">
-        <p>No expense data available to display.</p>
+      <div style={{
+        backgroundColor: '#1e293b',
+        color: '#f8fafc',
+        padding: '8px 12px',
+        borderRadius: '8px',
+        fontSize: '13px',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.15)',
+        border: '1px solid #334155'
+      }}>
+        <p style={{ margin: 0, fontWeight: 600 }}>{data.name}</p>
+        <p style={{ margin: 0, color: '#38bdf8' }}>
+          ${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
+export default function ExpensesChart({ summaryData = [], rawTransactions = [] }) {
+  // Memoize chart calculations to freeze the array reference and block rendering loops
+  const processedChartData = useMemo(() => {
+    const categoryMap = {};
+
+    if (Array.isArray(rawTransactions) && rawTransactions.length > 0) {
+      rawTransactions.forEach((t) => {
+        const type = (t.type || '').toUpperCase();
+        if (type === 'EXPENSE' || type === 'DEBIT') {
+          const cat = t.category || 'Uncategorized';
+          const parsedAmount = parseFloat(t.amount || 0);
+          if (!isNaN(parsedAmount) && parsedAmount > 0) {
+            categoryMap[cat] = (categoryMap[cat] || 0) + parsedAmount;
+          }
+        }
+      });
+    }
+
+    return Object.entries(categoryMap)
+      .map(([category, amount]) => ({
+        name: category,
+        value: Number(amount.toFixed(2)),
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [rawTransactions]); // Only recalculates when the transaction history changes
+
+  if (processedChartData.length === 0) {
+    return (
+      <div style={{
+        height: '280px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#94a3b8',
+        fontSize: '14px',
+        fontStyle: 'italic',
+      }}>
+        No expense data available to display
       </div>
     );
   }
 
-  // Group expense amounts by category using derived state
-  const categoryTotals = expenses.reduce((acc, item) => {
-    acc[item.category] = (acc[item.category] || 0) + item.amount;
-    return acc;
-  }, {});
-
-  const categories = Object.keys(categoryTotals);
-  const amounts = Object.values(categoryTotals);
-
-  // Configure Chart Data
-  const chartData = {
-    labels: categories,
-    datasets: [
-      {
-        label: 'Expenses ($)',
-        data: amounts,
-        backgroundColor: [
-          '#ef4444', // Red
-          '#f59e0b', // Amber
-          '#3b82f6', // Blue
-          '#10b981', // Green
-          '#8b5cf6', // Purple
-        ],
-        borderWidth: 1,
-      },
-    ],
-  };
-
   return (
-    <div className="chart-card">
-      <h3>Expense Breakdown</h3>
-      <div style={{ maxWidth: '300px', margin: '0 auto' }}>
-        <Doughnut data={chartData} />
-      </div>
+    <div style={{ width: '100%', height: '300px', minHeight: '300px' }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Tooltip content={<CustomTooltip />} />
+          <Legend
+            verticalAlign="bottom"
+            height={36}
+            formatter={(value) => (
+              <span style={{ color: '#475569', fontSize: '13px', fontWeight: 500 }}>
+                {value}
+              </span>
+            )}
+          />
+          <Pie
+            data={processedChartData}
+            dataKey="value"
+            nameKey="name"
+            cx="50%"
+            cy="45%"
+            innerRadius={60}
+            outerRadius={90}
+            paddingAngle={4}
+          >
+            {processedChartData.map((entry, index) => (
+              <Cell key={`cell-${entry.name}-${index}`} fill={COLORS[index % COLORS.length]} />
+            ))}
+          </Pie>
+        </PieChart>
+      </ResponsiveContainer>
     </div>
   );
 }
