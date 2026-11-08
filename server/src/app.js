@@ -1,19 +1,22 @@
-// server/src/app.js
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-// Import your existing routes here
-// import authRoutes from './routes/auth.js';
-// import transactionRoutes from './routes/transactions.js';
 import authRoutes from './routes/auth.js';
 import transactionRoutes from './routes/transactions.js';
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
 app.use(cookieParser());
+
+app.use(
+  cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:5173', // Must match your Vite origin exactly
+    credentials: true, // Required for httpOnly cookies
+  })
+);
+
+app.use(express.json());
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {

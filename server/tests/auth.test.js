@@ -5,6 +5,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import app from '../src/app.js';
 import { prisma } from '../src/lib/prisma.js';
+import bcrypt from 'bcrypt'
+import jwt from 'jsonwebtoken';
 
 // Mock the named export { prisma }
 vi.mock('../src/lib/prisma.js', () => ({
@@ -96,5 +98,92 @@ describe('POST /api/auth/register', () => {
     expect(response.body).toHaveProperty('error');
   });
 });
+
+describe('POST /api/auth/login', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks(); 
+  });
+
+  it('returns 401 if email or password is missing', async () => {
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'test@umn.edu' }); 
+
+    expect(res.status).toBe(401); // 👈 FIXED: Changed from 500 to 401
+    expect(res.body.error).toBe('Invalid email or password');
+  });
+
+  it('returns 401 if user does not exist', async () => {
+    vi.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'notfound@umn.edu', password: 'Password123!' });
+
+    expect(res.status).toBe(401); 
+    expect(res.body.error).toBe('Invalid email or password');
+  });
+
+  it('returns 401 if password does not match', async () => {
+    vi.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+      id: 'usr_123',
+      email: 'user@umn.edu',
+      passwordHash: '$2b$10$hashedPasswordSample', 
+    });
+
+    vi.spyOn(bcrypt, 'compare').mockResolvedValue(false);
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'user@umn.edu', password: 'WrongPassword' });
+
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 200 and sets cookie/token on successful login', async () => {
+    vi.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+      id: 'usr_123',
+      email: 'user@umn.edu',
+      passwordHash: '$2b$10$hashedPasswordSample',
+    });
+
+    vi.spyOn(bcrypt, 'compare').mockResolvedValue(true);
+    vi.spyOn(jwt, 'sign').mockReturnValue('mocked_jwt_token');
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'user@umn.edu', password: 'CorrectPassword' });
+
+    expect(res.status).toBe(200);
+
+     expect(res.headers['set-cookie']).toEqual(
+      expect.arrayContaining([expect.stringContaining('token=mocked_jwt_token')])
+    );
+    expect(res.body).toEqual({ id: 'usr_123', email: 'user@umn.edu' });
+  });
+
+  it('returns 500 when database throws an unexpected error during login', async () => {
+    vi.spyOn(prisma.user, 'findUnique').mockRejectedValue(new Error('Database connection failed'));
+
+    const res = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'user@umn.edu', password: 'Password123!' })
+      .expect(500);
+
+    expect(res.body).toEqual({ error: 'Database connection failed' });
+  });
+});
+
+describe('POST /api/auth/logout', () => {
+  it('returns 200 and clears the token cookie', async () => {
+    const res = await request(app)
+      .post('/api/auth/logout')
+      .expect(200);
+
+    expect(res.body.message).toBe('Logged out successfully');
+    expect(res.headers['set-cookie'][0]).toContain('token=;'); // Checks if cookie was cleared
+  });
+});
+
 
 });

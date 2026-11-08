@@ -4,3 +4,4 @@ cookies.txt
 dist
 *.log
 echo "cookies.txt" >> .gitignore
+coverage/
