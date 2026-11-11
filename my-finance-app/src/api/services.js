@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// Read the backend URL from environment variables, removing any trailing slash
+const backendBase = import.meta.env.VITE_API_URL 
+  ? import.meta.env.VITE_API_URL.replace(/\/+$/, '') 
+  : 'http://localhost:5000';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${backendBase}/api`,
   withCredentials: true,
 });
 
