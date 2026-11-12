@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { uploadTransactionsCSV } from '../services/api';
+import { uploadTransactionsCSV } from '../api/services';
 
 export default function CsvUploader({ onUploadSuccess }) {
   const [isDragging, setIsDragging] = useState(false);
