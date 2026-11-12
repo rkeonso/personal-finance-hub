@@ -50,10 +50,6 @@ export const uploadTransactionsCSV = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
 
-  const { data } = await api.post('/transactions/upload-csv', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+  const { data } = await api.post('/transactions/upload-csv', formData);
   return data;
 };

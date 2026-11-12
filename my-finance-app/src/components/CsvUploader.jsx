@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { uploadTransactionsCSV } from '../api/services';
+import { uploadTransactionsCSV } from '../services/api';
 
 export default function CsvUploader({ onUploadSuccess }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -61,54 +61,39 @@ export default function CsvUploader({ onUploadSuccess }) {
     setSelectedFile(file);
   };
 
-  const handleUpload = async () => {
-  // Grab the file directly from your component state instead of a function argument!
-  if (!selectedFile) {
-    setErrorMsg("Please select or drop a CSV file first.");
-    return;
-  }
-
-  setIsLoading(true);
-  setErrorMsg(null);
-  setSuccessMsg(null);
-  setStatus({ type: 'loading', message: 'Uploading CSV...' });
-
-  const formData = new FormData();
-  formData.append('file', selectedFile, selectedFile.name);
-
-  try {
-    const response = await fetch('/api/transactions/upload-csv', {
-      method: 'POST',
-      credentials: 'include', // clean cookie handling
-      body: formData,
-    });
-
-    if (!response.ok) {
-      let errorMessage = 'Failed to upload CSV';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorMessage;
-      } catch {
-        errorMessage = `Server error: ${response.status} ${response.statusText}`;
+    const handleUpload = async () => {
+      if (!selectedFile) {
+        setErrorMsg('Please select or drop a CSV file first.');
+        return;
       }
-      throw new Error(errorMessage);
-    }
 
-    const data = await response.json();
-    setSuccessMsg(`Successfully imported ${data.count} transactions.`);
-    setStatus({ type: 'success', message: 'CSV imported successfully.' });
-    setSelectedFile(null); // Clear state after success
+      setIsLoading(true);
+      setErrorMsg(null);
+      setSuccessMsg(null);
+      setStatus({ type: 'loading', message: 'Uploading CSV...' });
 
-    if (onUploadSuccess) onUploadSuccess();
-  } catch (err) {
-    console.error("Upload error:", err);
-    setErrorMsg(err.message);
-    setStatus({ type: 'error', message: err.message });
-  } finally {
-    setIsLoading(false);
-  }
-};
+      try {
+        const data = await uploadTransactionsCSV(selectedFile);
 
+        setSuccessMsg(`Successfully imported ${data.count} transactions.`);
+        setStatus({ type: 'success', message: 'CSV imported successfully.' });
+        setSelectedFile(null);
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+
+        if (onUploadSuccess) onUploadSuccess();
+      } catch (err) {
+        console.error('Upload error:', err);
+        const errorMessage =
+          err.response?.data?.error || err.message || 'Failed to upload CSV';
+        setErrorMsg(errorMessage);
+        setStatus({ type: 'error', message: errorMessage });
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
 
   return (
