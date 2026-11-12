@@ -53,9 +53,6 @@ useEffect(() => {
     }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
 
   // Handlers
   const handleAddTransaction = async (formData) => {
@@ -78,12 +75,12 @@ useEffect(() => {
 
   // Summary Metrics
   const incomeTotal = transactions
-    .filter((item) => item.type === 'income')
-    .reduce((acc, item) => acc + item.amount, 0);
+    .filter((item) => (item.type || '').toUpperCase() === 'INCOME')
+    .reduce((acc, item) => acc + Math.abs(parseFloat(item.amount || 0)), 0);
 
   const expenseTotal = transactions
-    .filter((item) => item.type === 'expense')
-    .reduce((acc, item) => acc + item.amount, 0);
+    .filter((item) => (item.type || '').toUpperCase() === 'EXPENSE')
+    .reduce((acc, item) => acc + Math.abs(parseFloat(item.amount || 0)), 0);
 
   const netBalance = incomeTotal - expenseTotal;
 
@@ -93,6 +90,8 @@ useEffect(() => {
     : transactions.filter((item) => item.category === activeFilter);
 
   const categories = ['all', 'Salary', 'Food', 'Entertainment', 'Utilities', 'Other'];
+
+
 
   return (
     <main className="dashboard-container" style={{ maxWidth: '1000px', margin: '0 auto', padding: '24px' }}>
